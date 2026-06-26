@@ -7,10 +7,15 @@ Had this running on localhost for a while and decided it was time for an upgrade
 ## How It Works
 
 1. The agent runs as a systemd service (`piAgent.service`) on the Pi.
-2. It polls the hosted web app for pending commands.
+2. It polls the hosted web app for pending commands using adaptive polling:
+   - **Idle** (15s): No one has the web page open.
+   - **Active** (2s): A browser session is detected (lasts 60s).
+   - **Burst** (0.25s): A command was just received (lasts 10s for rapid button presses).
 3. Commands are validated against a whitelist of allowed device/action combinations.
-4. Results are reported back to the web app.
-5. If the hosted app is unreachable or disabled, the agent runs in heartbeat-only mode.
+4. The receiver controller sends Yamaha XML commands over HTTP to the HTR-4065.
+5. Results are reported back to the web app.
+6. Receiver state (power, volume, mute, input) is pushed to the web app while a browser session is active.
+7. If the hosted app is unreachable or disabled, the agent runs in heartbeat-only mode.
 
 ## Configuration
 
@@ -70,10 +75,15 @@ src/piAgent.py                 Main service entry point
 src/settingsLoader.py          Config loading and validation
 src/flaskClient.py             HTTP client for the hosted Flask app
 src/commandDispatcher.py       Command validation and routing
-src/receiverController.py      Yamaha receiver placeholder handlers
+src/receiverController.py      Yamaha HTR-4065 XML command handlers
 systemd/piAgent.service        Systemd unit file
 install.sh                     First-time install script
 update.sh                      Pull and restart script
 scripts/                       Helper scripts for status, logs, restart
 docs/                          Setup documentation
+commands.txt                   Quick-reference commands (cat this)
 ```
+
+## Supported Receiver Commands
+
+Power, volume, mute, input selection (HDMI1-4, AirPlay), menu/cursor navigation, and AirPlay playback controls. See `commands.txt` for the full list.

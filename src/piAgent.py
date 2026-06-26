@@ -12,6 +12,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src.settingsLoader import loadSettings
 from src import flaskClient
 from src.commandDispatcher import dispatchCommand
+from src.receiverController import getBasicStatus
 
 logDir = "/var/log/homeControl"
 statusFilePath = "/var/lib/homeControl/status.json"
@@ -86,6 +87,7 @@ ACTIVE_INTERVAL = 2.0      # Someone opened / returned to the page
 BURST_INTERVAL = 0.25      # A command was just received (rapid-fire buttons)
 ACTIVE_DURATION = 60.0     # How long to stay in active mode after session ping
 BURST_DURATION = 10.0      # How long to stay in burst mode after a command
+STATE_PUSH_INTERVAL = 5.0  # How often to push receiver state when active (seconds)
 
 
 def _currentInterval(activeUntil, burstUntil):
@@ -135,6 +137,7 @@ def main():
     # Adaptive polling timers (epoch timestamps for when each mode expires)
     activeUntil = 0.0
     burstUntil = 0.0
+    lastStatePush = 0.0
 
     hostedAppEnabled = settings["hostedApp"].get("enabled", False)
     if hostedAppEnabled:
@@ -165,6 +168,16 @@ def main():
                     if activeUntil < burstUntil:
                         activeUntil = burstUntil
                     logger.info("Command received, switching to 0.25s polling for 10s")
+
+                # Push receiver state periodically while someone is watching
+                now = time.time()
+                if now < activeUntil and (now - lastStatePush) >= STATE_PUSH_INTERVAL:
+                    yamahaEnabled = settings["yamaha"].get("enabled", False)
+                    if yamahaEnabled:
+                        state = getBasicStatus(settings, logger)
+                        if state is not None:
+                            flaskClient.pushReceiverState(settings, state, logger)
+                            lastStatePush = now
 
             interval = _currentInterval(activeUntil, burstUntil)
 

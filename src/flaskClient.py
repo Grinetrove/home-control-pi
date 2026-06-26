@@ -70,3 +70,18 @@ def reportCommandResult(settings, commandId, success, message, logger):
     except requests.HTTPError as e:
         logger.warning(f"HTTP error reporting result for {commandId}: {e}")
         return False
+
+
+def pushReceiverState(settings, state, logger):
+    """Push the current receiver state to the hosted Flask app."""
+    baseUrl = settings["hostedApp"]["baseUrl"].rstrip("/")
+    url = baseUrl + "/api/agent/receiver-state"
+    timeout = settings["hostedApp"].get("requestTimeoutSeconds", 10)
+
+    try:
+        resp = requests.post(url, json=state, headers=_authHeaders(settings), timeout=timeout)
+        resp.raise_for_status()
+        return True
+    except Exception as e:
+        logger.warning(f"Failed to push receiver state: {e}")
+        return False

@@ -1,0 +1,56 @@
+====================================
+  Home Control Pi - Quick Reference
+====================================
+
+---- Service Management ----
+
+  sudo systemctl status piAgent.service      Check if service is running
+  sudo systemctl restart piAgent.service      Restart the agent
+  sudo systemctl stop piAgent.service         Stop the agent
+  sudo systemctl start piAgent.service        Start the agent
+  sudo journalctl -u piAgent.service -f       Live log tail
+
+---- Status & Logs ----
+
+  cat /var/lib/homeControl/status.json        Current agent status (JSON)
+  sudo ./scripts/status.sh                    Status summary
+  sudo ./scripts/logs.sh                      Recent logs
+  cat /var/log/homeControl/agent.log          Full agent log
+  cat /var/log/homeControl/error.log          Error log only
+
+---- Configuration ----
+
+  sudo nano /etc/homeControl/settings.json    Edit config
+  cat /etc/homeControl/settings.json          View current config
+
+  Key settings to verify:
+    yamaha.receiverIp         Receiver IP on local network
+    yamaha.enabled            Must be true for receiver commands
+    hostedApp.enabled         Must be true to poll the web app
+    hostedApp.baseUrl         URL of your hosted Flask app
+    hostedApp.agentToken      Must match AGENT_TOKEN on the server
+
+---- Update from GitHub ----
+
+  cd /opt/homeControl && sudo ./update.sh
+
+---- Supported Actions ----
+
+  Power:     powerOn, powerOff
+  Volume:    volumeUp, volumeDown, muteToggle
+  Inputs:    hdmi1, hdmi2, hdmi3, hdmi4, airplay
+  Cursor:    cursorUp, cursorDown, cursorLeft, cursorRight, cursorSelect, cursorReturn
+  Menu:      menuOnScreen
+  AirPlay:   airplayPlay, airplayPause, airplaySkipFwd, airplaySkipRev
+  Status:    getStatus
+
+---- Adaptive Polling ----
+
+  Idle:    15s    (no browser session active)
+  Active:   2s    (browser opened the page, lasts 60s)
+  Burst:  0.25s   (command received, lasts 10s)
+
+---- Receiver Network Info ----
+
+  The Yamaha HTR-4065 accepts XML commands via HTTP POST at:
+    http://<receiverIp>/YamahaRemoteControl/ctrl
