@@ -7,7 +7,7 @@
     },
     "hostedApp": {
         "enabled": false,
-        "baseUrl": "REPLACE_WITH_URL", 
+        "baseUrl": "https://REPLACE_WITH_URL", 
         "nextCommandPath": "/api/agent/next-command",
         "commandResultPath": "/api/agent/command-result",
         "agentToken": "REPLACE_WITH_AGENT_TOKEN",

@@ -78,6 +78,26 @@ def nowIso():
     return datetime.now(timezone.utc).isoformat()
 
 
+# ---------------------------------------------------------------------------
+# Adaptive polling intervals (seconds)
+# ---------------------------------------------------------------------------
+IDLE_INTERVAL = 15.0       # No one on the page
+ACTIVE_INTERVAL = 2.0      # Someone opened / returned to the page
+BURST_INTERVAL = 0.25      # A command was just received (rapid-fire buttons)
+ACTIVE_DURATION = 60.0     # How long to stay in active mode after session ping
+BURST_DURATION = 10.0      # How long to stay in burst mode after a command
+
+
+def _currentInterval(activeUntil, burstUntil):
+    """Return the appropriate poll interval based on current timers."""
+    now = time.time()
+    if now < burstUntil:
+        return BURST_INTERVAL
+    if now < activeUntil:
+        return ACTIVE_INTERVAL
+    return IDLE_INTERVAL
+
+
 def main():
     global running
 
@@ -105,25 +125,56 @@ def main():
         "lastCommand": None,
         "lastResult": None,
         "lastError": None,
+        "pollMode": "idle",
     }
     writeStatus(status)
 
-    pollInterval = settings["agent"]["pollIntervalSeconds"]
     statusWriteInterval = settings["agent"]["statusWriteIntervalSeconds"]
     lastStatusWrite = time.time()
+
+    # Adaptive polling timers (epoch timestamps for when each mode expires)
+    activeUntil = 0.0
+    burstUntil = 0.0
 
     hostedAppEnabled = settings["hostedApp"].get("enabled", False)
     if hostedAppEnabled:
         status["agentState"] = "polling"
-        logger.info("Hosted app enabled, entering polling mode")
+        logger.info("Hosted app enabled, entering adaptive polling mode")
     else:
         status["agentState"] = "heartbeat"
         logger.info("Hosted app disabled, entering heartbeat-only mode")
 
+    prevMode = None
+
     while running:
         try:
             if hostedAppEnabled:
-                _pollAndDispatch(settings, status, logger)
+                command, urgent = _pollAndDispatch(settings, status, logger)
+
+                now = time.time()
+
+                # If the server says a browser session is active, enter active mode
+                if urgent and now >= activeUntil:
+                    activeUntil = now + ACTIVE_DURATION
+                    logger.info("Session active, switching to 2s polling for 60s")
+
+                # If we received a command, enter burst mode
+                if command is not None:
+                    burstUntil = now + BURST_DURATION
+                    # Also extend active mode so we don't drop to idle right after burst
+                    if activeUntil < burstUntil:
+                        activeUntil = burstUntil
+                    logger.info("Command received, switching to 0.25s polling for 10s")
+
+            interval = _currentInterval(activeUntil, burstUntil)
+
+            # Log mode transitions
+            currentMode = "burst" if time.time() < burstUntil else ("active" if time.time() < activeUntil else "idle")
+            if currentMode != prevMode:
+                if prevMode is not None:
+                    logger.info(f"Poll mode: {prevMode} -> {currentMode} (interval={interval}s)")
+                status["pollMode"] = currentMode
+                prevMode = currentMode
 
             now = time.time()
             if now - lastStatusWrite >= statusWriteInterval:
@@ -131,14 +182,14 @@ def main():
                 writeStatus(status)
                 lastStatusWrite = now
 
-            _interruptibleSleep(pollInterval)
+            _interruptibleSleep(interval)
 
         except Exception as e:
             logger.error(f"Unexpected error in main loop: {e}", exc_info=True)
             status["lastError"] = {"error": str(e), "time": nowIso()}
             status["lastUpdated"] = nowIso()
             writeStatus(status)
-            _interruptibleSleep(pollInterval)
+            _interruptibleSleep(IDLE_INTERVAL)
 
     status["agentState"] = "stopped"
     status["lastUpdated"] = nowIso()
@@ -147,11 +198,15 @@ def main():
 
 
 def _pollAndDispatch(settings, status, logger):
-    command = flaskClient.getNextCommand(settings, logger)
+    """Poll for the next command and dispatch it.
+
+    Returns a tuple (command, urgent) so the main loop can adjust polling.
+    """
+    command, urgent = flaskClient.getNextCommand(settings, logger)
     status["lastPollTime"] = nowIso()
 
     if command is None:
-        return
+        return None, urgent
 
     commandId = command.get("commandId", "unknown")
     logger.info(f"Received command: {commandId} device={command.get('device')} action={command.get('action')}")
@@ -164,13 +219,14 @@ def _pollAndDispatch(settings, status, logger):
         status["lastError"] = {"commandId": commandId, "error": message, "time": nowIso()}
 
     flaskClient.reportCommandResult(settings, commandId, success, message, logger)
+    return command, urgent
 
 
 def _interruptibleSleep(seconds):
     """Sleep in small increments so signal handlers can interrupt promptly."""
     end = time.time() + seconds
     while running and time.time() < end:
-        time.sleep(min(0.5, end - time.time()))
+        time.sleep(min(0.1, end - time.time()))
 
 
 if __name__ == "__main__":

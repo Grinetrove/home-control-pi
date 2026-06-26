@@ -12,7 +12,11 @@ def _authHeaders(settings):
 
 
 def getNextCommand(settings, logger):
-    """Poll the hosted Flask app for the next pending command. Returns the command dict or None."""
+    """Poll the hosted Flask app for the next pending command.
+
+    Returns a tuple (command, urgent) where command is the command dict
+    or None, and urgent is a bool indicating if a browser session is active.
+    """
     url = _buildUrl(settings, "nextCommandPath")
     timeout = settings["hostedApp"].get("requestTimeoutSeconds", 10)
 
@@ -21,25 +25,25 @@ def getNextCommand(settings, logger):
         resp.raise_for_status()
     except requests.ConnectionError as e:
         logger.warning(f"Connection error polling for commands: {e}")
-        return None
+        return None, False
     except requests.Timeout:
         logger.warning("Timeout polling for commands")
-        return None
+        return None, False
     except requests.HTTPError as e:
         logger.warning(f"HTTP error polling for commands: {e}")
-        return None
+        return None, False
 
     try:
         body = resp.json()
     except ValueError:
         logger.error("Malformed JSON response from next-command endpoint")
-        return None
+        return None, False
 
     if not body.get("ok"):
         logger.warning(f"Server returned ok=false: {body}")
-        return None
+        return None, False
 
-    return body.get("command")
+    return body.get("command"), body.get("urgent", False)
 
 
 def reportCommandResult(settings, commandId, success, message, logger):
