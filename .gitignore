@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment files
+.env
+.env.*
+
+# Real settings (example is tracked)
+settings.json
+!config/settings.example.json
+
+# Logs
+*.log
+
+# Runtime status
+status.json
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

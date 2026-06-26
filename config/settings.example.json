@@ -1,0 +1,31 @@
+{
+    "schemaVersion": 1,
+    "agent": {
+        "agentName": "homeControlPi",
+        "pollIntervalSeconds": 3,
+        "statusWriteIntervalSeconds": 10
+    },
+    "hostedApp": {
+        "enabled": false,
+        "baseUrl": "REPLACE_WITH_URL", 
+        "nextCommandPath": "/api/agent/next-command",
+        "commandResultPath": "/api/agent/command-result",
+        "agentToken": "REPLACE_WITH_AGENT_TOKEN",
+        "requestTimeoutSeconds": 10
+    },
+    "yamaha": {
+        "enabled": true,
+        "receiverIp": "10.0.0.44",
+        "receiverPort": 80,
+        "requestTimeoutSeconds": 3
+    },
+    "govee": {
+        "enabled": false,
+        "controlMode": "undecided"
+    },
+    "logging": {
+        "logLevel": "INFO",
+        "maxLogSizeMb": 5,
+        "backupCount": 3
+    }
+}
