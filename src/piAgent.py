@@ -83,18 +83,14 @@ def nowIso():
 # Adaptive polling intervals (seconds)
 # ---------------------------------------------------------------------------
 IDLE_INTERVAL = 15.0       # No one on the page
-ACTIVE_INTERVAL = 2.0      # Someone opened / returned to the page
-BURST_INTERVAL = 0.25      # A command was just received (rapid-fire buttons)
-ACTIVE_DURATION = 60.0     # How long to stay in active mode after session ping
-BURST_DURATION = 10.0      # How long to stay in burst mode after a command
+ACTIVE_INTERVAL = 0.5      # Someone has the page open
+ACTIVE_DURATION = 35.0     # How long to stay active after a session ping
 STATE_PUSH_INTERVAL = 5.0  # How often to push receiver state when active (seconds)
 
 
-def _currentInterval(activeUntil, burstUntil):
+def _currentInterval(activeUntil):
     """Return the appropriate poll interval based on current timers."""
     now = time.time()
-    if now < burstUntil:
-        return BURST_INTERVAL
     if now < activeUntil:
         return ACTIVE_INTERVAL
     return IDLE_INTERVAL
@@ -134,9 +130,8 @@ def main():
     statusWriteInterval = settings["agent"]["statusWriteIntervalSeconds"]
     lastStatusWrite = time.time()
 
-    # Adaptive polling timers (epoch timestamps for when each mode expires)
+    # Adaptive polling timer (epoch timestamp for when active mode expires)
     activeUntil = 0.0
-    burstUntil = 0.0
     lastStatePush = 0.0
 
     hostedAppEnabled = settings["hostedApp"].get("enabled", False)
@@ -156,21 +151,12 @@ def main():
 
                 now = time.time()
 
-                # If the server says a browser session is active, enter active mode
-                if urgent and now >= activeUntil:
+                # If the server says a browser session is active, reset active timer
+                if urgent:
                     activeUntil = now + ACTIVE_DURATION
-                    logger.info("Session active, switching to 2s polling for 60s")
-
-                # If we received a command, enter burst mode
-                if command is not None:
-                    burstUntil = now + BURST_DURATION
-                    # Also extend active mode so we don't drop to idle right after burst
-                    if activeUntil < burstUntil:
-                        activeUntil = burstUntil
-                    logger.info("Command received, switching to 0.25s polling for 10s")
+                    logger.debug("Session ping received, active for 35s")
 
                 # Push receiver state periodically while someone is watching
-                now = time.time()
                 if now < activeUntil and (now - lastStatePush) >= STATE_PUSH_INTERVAL:
                     yamahaEnabled = settings["yamaha"].get("enabled", False)
                     if yamahaEnabled:
@@ -179,10 +165,10 @@ def main():
                             flaskClient.pushReceiverState(settings, state, logger)
                             lastStatePush = now
 
-            interval = _currentInterval(activeUntil, burstUntil)
+            interval = _currentInterval(activeUntil)
 
             # Log mode transitions
-            currentMode = "burst" if time.time() < burstUntil else ("active" if time.time() < activeUntil else "idle")
+            currentMode = "active" if time.time() < activeUntil else "idle"
             if currentMode != prevMode:
                 if prevMode is not None:
                     logger.info(f"Poll mode: {prevMode} -> {currentMode} (interval={interval}s)")
