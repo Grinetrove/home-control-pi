@@ -30,11 +30,29 @@ mkdir -p "$STATE_DIR"
 chown "$SERVICE_USER:$SERVICE_USER" "$LOG_DIR"
 chown "$SERVICE_USER:$SERVICE_USER" "$STATE_DIR"
 
+# Install system dependencies for IR control
+echo "Installing system dependencies..."
+apt-get install -y v4l-utils --quiet 2>/dev/null || apt install -y v4l-utils
+
 # Create virtual environment
 echo "Setting up Python virtual environment..."
 python3 -m venv "$INSTALL_DIR/.venv"
 "$INSTALL_DIR/.venv/bin/pip" install --upgrade pip --quiet
 "$INSTALL_DIR/.venv/bin/pip" install -r "$INSTALL_DIR/requirements.txt" --quiet
+
+# Make IR scripts executable
+echo "Setting up IR scripts..."
+chmod +x "$INSTALL_DIR/scripts/sendIrSignal.sh"
+chmod +x "$INSTALL_DIR/scripts/storeIrSignal.sh"
+chmod +x "$INSTALL_DIR/scripts/checkIrDevices.sh"
+
+# Create storedSignals directory and blank placeholders
+mkdir -p "$INSTALL_DIR/storedSignals"
+for irFile in projectorOn.ir projectorOff.ir toggleSoundbar.ir; do
+    if [ ! -s "$INSTALL_DIR/storedSignals/$irFile" ]; then
+        touch "$INSTALL_DIR/storedSignals/$irFile"
+    fi
+done
 
 # Copy example settings if real settings don't exist
 if [ ! -f "$CONFIG_DIR/settings.json" ]; then
@@ -69,3 +87,8 @@ echo "  1. Edit settings:  sudo nano $CONFIG_DIR/settings.json"
 echo "  2. Restart service: sudo systemctl restart piAgent.service"
 echo "  3. Check status:    sudo systemctl status piAgent.service"
 echo "  4. View logs:       sudo journalctl -u piAgent.service -f"
+echo ""
+echo "IR setup (manual):"
+echo "  - Edit /boot/firmware/config.txt to add IR overlays and reboot."
+echo "  - Record signals with: ./scripts/storeIrSignal.sh storedSignals/<name>.ir"
+echo "  - See README.md for wiring and config.txt details."

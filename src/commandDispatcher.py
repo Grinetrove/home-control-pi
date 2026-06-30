@@ -1,8 +1,10 @@
 from src import receiverController
+from src import irController
 
 # Whitelisted devices and their allowed actions
 allowedDevices = {
     "receiver": list(receiverController.actionMap.keys()),
+    "ir": list(irController.actionMap.keys()),
 }
 
 requiredFields = ["commandId", "device", "action", "value"]
@@ -34,6 +36,10 @@ def dispatchCommand(command, settings, logger):
     try:
         if device == "receiver":
             handler = receiverController.actionMap[action]
+            success, message = handler(settings, logger)
+            return success, message
+        if device == "ir":
+            handler = irController.actionMap[action]
             success, message = handler(settings, logger)
             return success, message
     except Exception as e:
