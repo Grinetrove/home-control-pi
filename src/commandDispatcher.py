@@ -7,7 +7,10 @@ allowedDevices = {
     "ir": list(irController.actionMap.keys()),
 }
 
-requiredFields = ["commandId", "device", "action", "value"]
+# Actions that accept a value parameter
+valuedActions = {"volumeSet"}
+
+requiredFields = ["commandId", "device", "action"]
 
 
 def dispatchCommand(command, settings, logger):
@@ -19,11 +22,9 @@ def dispatchCommand(command, settings, logger):
         if field not in command:
             return False, f"Missing required field: {field}"
 
-    if command["value"] is not None:
-        return False, "Non-null value is not supported in v1"
-
     device = command["device"]
     action = command["action"]
+    value = command.get("value")
 
     if device not in allowedDevices:
         return False, f"Unknown device: {device}"
@@ -31,12 +32,19 @@ def dispatchCommand(command, settings, logger):
     if action not in allowedDevices[device]:
         return False, f"Unknown action '{action}' for device '{device}'"
 
-    logger.info(f"Dispatching: device={device} action={action}")
+    # Reject unexpected values on non-valued actions
+    if value is not None and action not in valuedActions:
+        return False, f"Action '{action}' does not accept a value"
+
+    logger.info(f"Dispatching: device={device} action={action} value={value}")
 
     try:
         if device == "receiver":
             handler = receiverController.actionMap[action]
-            success, message = handler(settings, logger)
+            if action in valuedActions:
+                success, message = handler(settings, logger, value=value)
+            else:
+                success, message = handler(settings, logger)
             return success, message
         if device == "ir":
             handler = irController.actionMap[action]

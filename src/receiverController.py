@@ -157,6 +157,27 @@ def muteToggle(settings, logger):
     return True, f"mute {newState}"
 
 
+def muteOn(settings, logger):
+    _postXml(settings, _buildPut(["Main_Zone", "Volume", "Mute"], "On"))
+    logger.info("Receiver: mute On")
+    return True, "mute On"
+
+
+def muteOff(settings, logger):
+    _postXml(settings, _buildPut(["Main_Zone", "Volume", "Mute"], "Off"))
+    logger.info("Receiver: mute Off")
+    return True, "mute Off"
+
+
+def volumeSet(settings, logger, value=None):
+    if value is None:
+        return False, "volumeSet requires a value"
+    _setVolumeDb(settings, value)
+    newVol = _getVolumeDb(settings)
+    logger.info(f"Receiver: volumeSet to {newVol} dB")
+    return True, f"volume {newVol} dB"
+
+
 def hdmi1(settings, logger):
     _postXml(settings, _buildPut(["Main_Zone", "Input", "Input_Sel"], "HDMI1"))
     logger.info("Receiver: input HDMI1")
@@ -265,6 +286,9 @@ actionMap = {
     "volumeUp": volumeUp,
     "volumeDown": volumeDown,
     "muteToggle": muteToggle,
+    "muteOn": muteOn,
+    "muteOff": muteOff,
+    "volumeSet": volumeSet,
     "hdmi1": hdmi1,
     "hdmi2": hdmi2,
     "hdmi3": hdmi3,
