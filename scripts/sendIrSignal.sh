@@ -22,6 +22,8 @@ if ! command -v ir-ctl &>/dev/null; then
     exit 1
 fi
 
+# Hard coding this for now because there's only one anyway
+IR_TRANSMIT_DEVICE="/dev/lirc0"
 
 if [ -n "$IR_TRANSMIT_DEVICE" ]; then
     TX_DEVICE="$IR_TRANSMIT_DEVICE"

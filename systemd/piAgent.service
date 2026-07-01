@@ -7,6 +7,7 @@ Wants=network-online.target
 Type=simple
 User=homecontrol
 Group=homecontrol
+SupplementaryGroups=video
 WorkingDirectory=/opt/homeControl
 ExecStart=/opt/homeControl/.venv/bin/python /opt/homeControl/src/piAgent.py
 Restart=on-failure
