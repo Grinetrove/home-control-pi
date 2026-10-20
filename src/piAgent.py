@@ -82,10 +82,11 @@ def nowIso():
 # ---------------------------------------------------------------------------
 # Adaptive polling intervals (seconds)
 # ---------------------------------------------------------------------------
-IDLE_INTERVAL = 15.0       # No one on the page
-ACTIVE_INTERVAL = 0.5      # Someone has the page open
+IDLE_INTERVAL = 10.0       # No one on the page
+ACTIVE_INTERVAL = 0.1      # Someone has the page open
 ACTIVE_DURATION = 35.0     # How long to stay active after a session ping
-STATE_PUSH_INTERVAL = 5.0  # How often to push receiver state when active (seconds)
+STATE_PUSH_INTERVAL = 0.5  # How often to push receiver state when active (seconds)
+IDLE_STATE_INTERVAL = 300.0  # Push receiver state every 5 min even when idle
 
 
 def _currentInterval(activeUntil):
@@ -133,6 +134,7 @@ def main():
     # Adaptive polling timer (epoch timestamp for when active mode expires)
     activeUntil = 0.0
     lastStatePush = 0.0
+    lastIdleStatePush = 0.0
 
     hostedAppEnabled = settings["hostedApp"].get("enabled", False)
     if hostedAppEnabled:
@@ -151,19 +153,36 @@ def main():
 
                 now = time.time()
 
-                # If the server says a browser session is active, reset active timer
-                if urgent:
+                # If the server says a browser session is active, or we just
+                # dispatched a command, reset the active timer so we stay fast
+                # while working through a backlog.
+                if urgent or command is not None:
                     activeUntil = now + ACTIVE_DURATION
-                    logger.debug("Session ping received, active for 35s")
+                    if urgent:
+                        logger.debug("Session ping received, active for 35s")
+                    elif command is not None:
+                        logger.debug("Command dispatched, active for 35s")
+
+                yamahaEnabled = settings["yamaha"].get("enabled", False)
 
                 # Push receiver state periodically while someone is watching
                 if now < activeUntil and (now - lastStatePush) >= STATE_PUSH_INTERVAL:
-                    yamahaEnabled = settings["yamaha"].get("enabled", False)
                     if yamahaEnabled:
                         state = getBasicStatus(settings, logger)
                         if state is not None:
                             flaskClient.pushReceiverState(settings, state, logger)
                             lastStatePush = now
+                            lastIdleStatePush = now
+
+                # Push receiver state every 5 min even when idle
+                if now >= activeUntil and (now - lastIdleStatePush) >= IDLE_STATE_INTERVAL:
+                    if yamahaEnabled:
+                        state = getBasicStatus(settings, logger)
+                        if state is not None:
+                            flaskClient.pushReceiverState(settings, state, logger)
+                            lastIdleStatePush = now
+                            lastStatePush = now
+                            logger.info("Idle state push: receiver polled")
 
             interval = _currentInterval(activeUntil)
 
