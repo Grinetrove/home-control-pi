@@ -85,7 +85,8 @@ def nowIso():
 IDLE_INTERVAL = 10.0       # No one on the page
 ACTIVE_INTERVAL = 0.01     # Someone has the page open - as fast as possible
 ACTIVE_DURATION = 35.0     # How long to stay active after a session ping
-STATE_PUSH_INTERVAL = 0.1  # How often to push receiver state when active (seconds)
+STATE_PUSH_INTERVAL = 2.0  # How often to push receiver state when active (seconds)
+STATE_QUIET_DELAY = 2.0    # Wait this long after last command before reading state
 IDLE_STATE_INTERVAL = 300.0  # Push receiver state every 5 min even when idle
 
 
@@ -135,6 +136,7 @@ def main():
     activeUntil = 0.0
     lastStatePush = 0.0
     lastIdleStatePush = 0.0
+    lastCommandTime = 0.0  # When we last dispatched a command
 
     hostedAppEnabled = settings["hostedApp"].get("enabled", False)
     if hostedAppEnabled:
@@ -160,13 +162,20 @@ def main():
                     activeUntil = now + ACTIVE_DURATION
                     if urgent:
                         logger.debug("Session ping received, active for 35s")
-                    elif command is not None:
-                        logger.debug("Command dispatched, active for 35s")
+
+                # Track when we last dispatched a command so we can
+                # debounce receiver reads (avoid reading mid-button-spam).
+                if command is not None:
+                    lastCommandTime = now
+                    logger.debug("Command dispatched, active for 35s")
 
                 yamahaEnabled = settings["yamaha"].get("enabled", False)
+                sinceLastCmd = now - lastCommandTime
+                sinceLastPush = now - lastStatePush
 
-                # Push receiver state periodically while someone is watching
-                if now < activeUntil and (now - lastStatePush) >= STATE_PUSH_INTERVAL:
+                # Active mode: read receiver state every 2s, but only if
+                # no command was dispatched in the last 2s (debounce).
+                if now < activeUntil and sinceLastCmd >= STATE_QUIET_DELAY and sinceLastPush >= STATE_PUSH_INTERVAL:
                     if yamahaEnabled:
                         state = getBasicStatus(settings, logger)
                         if state is not None:
@@ -174,7 +183,7 @@ def main():
                             lastStatePush = now
                             lastIdleStatePush = now
 
-                # Push receiver state every 5 min even when idle
+                # Idle mode: read receiver state every 5 min
                 if now >= activeUntil and (now - lastIdleStatePush) >= IDLE_STATE_INTERVAL:
                     if yamahaEnabled:
                         state = getBasicStatus(settings, logger)
