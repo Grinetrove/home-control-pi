@@ -17,10 +17,9 @@ git pull
 echo "Installing dependencies..."
 "$INSTALL_DIR/.venv/bin/pip" install -r "$INSTALL_DIR/requirements.txt" --quiet
 
-# Ensure IR scripts are executable
-chmod +x "$INSTALL_DIR/scripts/sendIrSignal.sh" 2>/dev/null || true
-chmod +x "$INSTALL_DIR/scripts/storeIrSignal.sh" 2>/dev/null || true
-chmod +x "$INSTALL_DIR/scripts/checkIrDevices.sh" 2>/dev/null || true
+# Ensure all scripts are executable
+chmod +x "$INSTALL_DIR/install.sh" "$INSTALL_DIR/update.sh" 2>/dev/null || true
+chmod +x "$INSTALL_DIR/scripts/"*.sh 2>/dev/null || true
 
 # Create storedSignals directory and blank placeholders (do not overwrite existing recordings)
 mkdir -p "$INSTALL_DIR/storedSignals"

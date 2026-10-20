@@ -40,11 +40,10 @@ python3 -m venv "$INSTALL_DIR/.venv"
 "$INSTALL_DIR/.venv/bin/pip" install --upgrade pip --quiet
 "$INSTALL_DIR/.venv/bin/pip" install -r "$INSTALL_DIR/requirements.txt" --quiet
 
-# Make IR scripts executable
-echo "Setting up IR scripts..."
-chmod +x "$INSTALL_DIR/scripts/sendIrSignal.sh"
-chmod +x "$INSTALL_DIR/scripts/storeIrSignal.sh"
-chmod +x "$INSTALL_DIR/scripts/checkIrDevices.sh"
+# Make all scripts executable
+echo "Setting script permissions..."
+chmod +x "$INSTALL_DIR/install.sh" "$INSTALL_DIR/update.sh"
+chmod +x "$INSTALL_DIR/scripts/"*.sh
 
 # Create storedSignals directory and blank placeholders
 mkdir -p "$INSTALL_DIR/storedSignals"
