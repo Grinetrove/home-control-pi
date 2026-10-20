@@ -83,9 +83,9 @@ def nowIso():
 # Adaptive polling intervals (seconds)
 # ---------------------------------------------------------------------------
 IDLE_INTERVAL = 10.0       # No one on the page
-ACTIVE_INTERVAL = 0.1      # Someone has the page open
+ACTIVE_INTERVAL = 0.01     # Someone has the page open - as fast as possible
 ACTIVE_DURATION = 35.0     # How long to stay active after a session ping
-STATE_PUSH_INTERVAL = 0.5  # How often to push receiver state when active (seconds)
+STATE_PUSH_INTERVAL = 0.1  # How often to push receiver state when active (seconds)
 IDLE_STATE_INTERVAL = 300.0  # Push receiver state every 5 min even when idle
 
 
@@ -244,7 +244,7 @@ def _interruptibleSleep(seconds):
     """Sleep in small increments so signal handlers can interrupt promptly."""
     end = time.time() + seconds
     while running and time.time() < end:
-        time.sleep(min(0.1, end - time.time()))
+        time.sleep(min(0.01, end - time.time()))
 
 
 if __name__ == "__main__":
